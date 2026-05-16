@@ -12,29 +12,16 @@ This is the publishable OpenClaw plugin package for AI Compare.
 
 ## Install
 
-### Recommended: release package
-
 ```bash
-openclaw plugins install /path/to/ai-compare-hard-router.zip
-openclaw plugins enable ai-compare-hard-router
+openclaw plugins install git:github.com/taoAIGC/AIBridge --dangerously-force-unsafe-install
 openclaw gateway restart
 ```
 
-### Direct from GitHub
+Why the extra flag:
 
-```bash
-openclaw plugins install git:github.com/taoAIGC/AIBridge
-openclaw plugins enable ai-compare-hard-router
-openclaw gateway restart
-```
-
-### Development: linked local plugin
-
-```bash
-openclaw plugins install --link <REPO_ROOT>/openclaw-extension
-openclaw plugins enable ai-compare-hard-router
-openclaw gateway restart
-```
+- The plugin intentionally uses local runner scripts and `child_process` to open the AI Compare browser flow.
+- OpenClaw's safety scanner blocks that pattern by default.
+- Users should only install it from a trusted source.
 
 ## Required companion
 
@@ -67,7 +54,55 @@ Add plugin config to `~/.openclaw/openclaw.json`:
 }
 ```
 
+Minimum effective config:
+
+- `enabled: true`
+- `extensionId: "dkhpgbbhlnmjbkihoeniojpkggkabbbl"`
+- `installUrl: "https://chromewebstore.google.com/detail/dkhpgbbhlnmjbkihoeniojpkggkabbbl"`
+
+Recommended config:
+
+- `browserApp: "Google Chrome"` to force the expected browser
+- `timeoutMs: 190000` to give the full browser runner enough time
+- `debugLogPath: "~/.openclaw/logs/ai-compare-hard-router.log"` for troubleshooting
+
 For a release build, set `extensionId` and `installUrl` to the Chrome Web Store values for that release. For a private or unpacked build, point `extensionId` at the installed Chrome extension id and `installUrl` at the matching install page or onboarding page.
+
+## Verify install
+
+1. Restart the formal gateway:
+
+```bash
+openclaw gateway restart
+```
+
+2. Confirm the runtime install source and hooks:
+
+```bash
+openclaw plugins inspect ai-compare-hard-router --runtime --json
+```
+
+3. Confirm the plugin log is active:
+
+```bash
+tail -n 50 ~/.openclaw/logs/ai-compare-hard-router.log
+```
+
+4. Test from the formal gateway path, not embedded fallback:
+
+```bash
+TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw/openclaw.json)
+openclaw tui --token "$TOKEN" --message '搜索一下 OpenAI'
+```
+
+If the plugin is working, the log should show `before_dispatch.match`, then `before_dispatch.runner_complete`, then `before_dispatch.handled`.
+
+## Usage requirements
+
+- Install the Chrome extension into the same Chrome profile that OpenClaw will open.
+- Make sure that Chrome profile is already logged into the target AI sites you want AI Compare to use.
+- Use search-style prompts such as `搜索一下 OpenAI`, `查一下...`, `compare...`, or `look up...`.
+- If you want OpenClaw to keep using its normal web-search flow, ask explicitly for `web search`, `google search`, `bing search`, `网页搜索`, or `新闻搜索`.
 
 ## Behavior notes
 
