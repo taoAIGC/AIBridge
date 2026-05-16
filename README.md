@@ -8,7 +8,7 @@ This is the publishable OpenClaw plugin package for AI Compare.
 - Matches explicit search phrases such as `搜索 XX`, `查一下 XX`, `搜一下 XX`, `我要搜索 XX`, `search for XX`, and `look up XX`
 - Also matches softer research-style phrases such as `了解一下 XX`, `研究一下 XX`, `看看 XX`, `比较一下 XX`, `learn about XX`, `look into XX`, and `compare XX`
 - Calls the AI Compare GUI runner directly
-- Returns the raw runner JSON payload instead of model-written summaries
+- Returns per-site blocks with only site name, URL, and extracted content instead of model-written summaries
 
 ## Install
 
@@ -31,6 +31,8 @@ If the browser extension is not installed yet, use the Chrome Web Store page:
 
 `https://chromewebstore.google.com/detail/dkhpgbbhlnmjbkihoeniojpkggkabbbl`
 
+For local development, load the unpacked extension from `chrome://extensions` and make sure the loaded extension id is `hhkhgpadepocnmjfpohcmjdcgkmfnadi`.
+
 ## Configuration
 
 Add plugin config to `~/.openclaw/openclaw.json`:
@@ -42,10 +44,9 @@ Add plugin config to `~/.openclaw/openclaw.json`:
       "ai-compare-hard-router": {
         "enabled": true,
         "config": {
-          "extensionId": "dkhpgbbhlnmjbkihoeniojpkggkabbbl",
+          "environment": "production",
           "browserApp": "Google Chrome",
           "timeoutMs": 190000,
-          "installUrl": "https://chromewebstore.google.com/detail/dkhpgbbhlnmjbkihoeniojpkggkabbbl",
           "debugLogPath": "~/.openclaw/logs/ai-compare-hard-router.log"
         }
       }
@@ -57,8 +58,7 @@ Add plugin config to `~/.openclaw/openclaw.json`:
 Minimum effective config:
 
 - `enabled: true`
-- `extensionId: "dkhpgbbhlnmjbkihoeniojpkggkabbbl"`
-- `installUrl: "https://chromewebstore.google.com/detail/dkhpgbbhlnmjbkihoeniojpkggkabbbl"`
+- `environment: "production"`
 
 Recommended config:
 
@@ -66,7 +66,11 @@ Recommended config:
 - `timeoutMs: 190000` to give the full browser runner enough time
 - `debugLogPath: "~/.openclaw/logs/ai-compare-hard-router.log"` for troubleshooting
 
-For a release build, set `extensionId` and `installUrl` to the Chrome Web Store values for that release. For a private or unpacked build, point `extensionId` at the installed Chrome extension id and `installUrl` at the matching install page or onboarding page.
+Environment behavior:
+
+- `environment: "production"` uses extension id `dkhpgbbhlnmjbkihoeniojpkggkabbbl` and the Chrome Web Store install URL.
+- `environment: "development"` uses extension id `hhkhgpadepocnmjfpohcmjdcgkmfnadi` and expects an unpacked extension loaded from `chrome://extensions`.
+- `extensionId` and `installUrl` still work as explicit overrides when you need a private build or a different release.
 
 ## Verify install
 
@@ -109,4 +113,4 @@ If the plugin is working, the log should show `before_dispatch.match`, then `bef
 - If the user explicitly asks for `web search`, `google search`, `bing search`, `网页搜索`, or `新闻搜索`, this plugin does not claim the request
 - If the user explicitly names sites like `ChatGPT` or `Gemini`, the plugin adds `--sites`
 - Missing extension and callback timeout errors are surfaced directly instead of falling back to web search
-- Successful runs are passed through as raw JSON from the bundled runner
+- Successful runs are returned as structured site blocks containing only site name, URL, and content

@@ -12,14 +12,20 @@ import {
 import { extractSearchIntentFromEvent, detectSites } from "./lib/intent.js";
 import { createDebugLogger } from "./lib/logging.js";
 import {
+  DEFAULT_RUNTIME_ENVIRONMENT,
+  DEFAULT_RUNTIME_ENVIRONMENT_ENV,
   DEFAULT_EXTENSION_ID,
   DEFAULT_EXTENSION_ID_ENV,
   DEFAULT_INSTALL_URL,
   DEFAULT_INSTALL_URL_ENV,
   DEFAULT_TIMEOUT_MS,
+  DEVELOPMENT_ENVIRONMENT,
+  DEVELOPMENT_EXTENSION_ID,
+  DEVELOPMENT_INSTALL_URL,
   PLUGIN_DESCRIPTION,
   PLUGIN_ID,
-  PLUGIN_NAME
+  PLUGIN_NAME,
+  PRODUCTION_ENVIRONMENT
 } from "./lib/defaults.js";
 import {
   buildRunnerArgs,
@@ -46,19 +52,68 @@ function readEnvValue(name) {
   }
 }
 
+function normalizeRuntimeEnvironment(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return DEFAULT_RUNTIME_ENVIRONMENT;
+
+  if ([
+    DEVELOPMENT_ENVIRONMENT,
+    "dev",
+    "local",
+    "debug",
+    "development_env",
+    "dev_env",
+    "开发",
+    "开发环境"
+  ].includes(normalized)) {
+    return DEVELOPMENT_ENVIRONMENT;
+  }
+
+  if ([
+    PRODUCTION_ENVIRONMENT,
+    "prod",
+    "release",
+    "live",
+    "online",
+    "formal",
+    "正式",
+    "线上",
+    "线上环境"
+  ].includes(normalized)) {
+    return PRODUCTION_ENVIRONMENT;
+  }
+
+  return DEFAULT_RUNTIME_ENVIRONMENT;
+}
+
 function getPluginRuntimeOptions(pluginConfig) {
+  const environment = normalizeRuntimeEnvironment(
+    typeof pluginConfig.environment === "string" && pluginConfig.environment.trim()
+      ? pluginConfig.environment
+      : readEnvValue(DEFAULT_RUNTIME_ENVIRONMENT_ENV)
+  );
+  const environmentDefaults = environment === DEVELOPMENT_ENVIRONMENT
+    ? {
+        extensionId: DEVELOPMENT_EXTENSION_ID,
+        installUrl: DEVELOPMENT_INSTALL_URL
+      }
+    : {
+        extensionId: DEFAULT_EXTENSION_ID,
+        installUrl: DEFAULT_INSTALL_URL
+      };
   const extensionId = typeof pluginConfig.extensionId === "string" && pluginConfig.extensionId.trim()
     ? pluginConfig.extensionId.trim()
-    : readEnvValue(DEFAULT_EXTENSION_ID_ENV) || DEFAULT_EXTENSION_ID;
+    : readEnvValue(DEFAULT_EXTENSION_ID_ENV) || environmentDefaults.extensionId;
   const browserApp = typeof pluginConfig.browserApp === "string" && pluginConfig.browserApp.trim()
     ? pluginConfig.browserApp.trim()
     : "";
   const installUrl = typeof pluginConfig.installUrl === "string" && pluginConfig.installUrl.trim()
     ? pluginConfig.installUrl.trim()
-    : readEnvValue(DEFAULT_INSTALL_URL_ENV) || DEFAULT_INSTALL_URL;
+    : readEnvValue(DEFAULT_INSTALL_URL_ENV) || environmentDefaults.installUrl;
   const timeoutMs = resolveTimeoutMs(pluginConfig, DEFAULT_TIMEOUT_MS);
 
   return {
+    environment,
     extensionId,
     browserApp,
     installUrl,
@@ -109,12 +164,14 @@ async function handleSearchRoute({
     appendDebugLog(`${hookName}.missing_extension_id`, {
       ...hookMeta,
       query: intent.query,
+      environment: runtimeOptions.environment,
       installUrl: runtimeOptions.installUrl
     });
     return {
       handled: true,
       text: buildMissingExtensionMessage({
         ...pluginConfig,
+        environment: runtimeOptions.environment,
         extensionId: runtimeOptions.extensionId,
         installUrl: runtimeOptions.installUrl
       })
@@ -133,6 +190,7 @@ async function handleSearchRoute({
     noSummary: intent.noSummary === true,
     sites,
     runnerPath,
+    environment: runtimeOptions.environment,
     extensionId: runtimeOptions.extensionId,
     browserApp: runtimeOptions.browserApp,
     installUrl: runtimeOptions.installUrl,
@@ -202,6 +260,7 @@ async function handleSearchRoute({
       query: intent.query,
       pluginConfig: {
         ...pluginConfig,
+        environment: runtimeOptions.environment,
         extensionId: runtimeOptions.extensionId,
         installUrl: runtimeOptions.installUrl
       }

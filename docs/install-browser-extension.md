@@ -7,6 +7,7 @@ Use this guide when the OpenClaw runner says the AI Compare browser extension is
 1. Open:
    `https://chromewebstore.google.com/detail/dkhpgbbhlnmjbkihoeniojpkggkabbbl`
 2. Install AI Compare into the same Chrome profile that OpenClaw will connect to.
+3. Use plugin config `environment: "production"` when you want OpenClaw to target this store build.
 
 ## Load unpacked for local development
 
@@ -14,6 +15,8 @@ Use this guide when the OpenClaw runner says the AI Compare browser extension is
 2. Enable `Developer mode`
 3. Click `Load unpacked`
 4. Select the repository root
+5. Confirm the loaded extension id is `hhkhgpadepocnmjfpohcmjdcgkmfnadi`
+6. Use plugin config `environment: "development"` when you want OpenClaw to target this unpacked build.
 
 ## Find the extension id
 
