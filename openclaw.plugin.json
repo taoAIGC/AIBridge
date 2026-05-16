@@ -3,6 +3,9 @@
   "name": "AI Compare Hard Router",
   "description": "Intercepts search-style user requests before model dispatch and routes them directly to the AI Compare GUI runner.",
   "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

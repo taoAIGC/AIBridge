@@ -1,11 +1,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 
 import {
   buildFailureMessage,
   buildMissingRunnerMessage,
   buildMissingExtensionMessage,
-  formatRunnerPayload
+  formatRunnerPayload,
+  truncateContent
 } from "./lib/formatters.js";
 import { extractSearchIntentFromEvent, detectSites } from "./lib/intent.js";
 import { createDebugLogger } from "./lib/logging.js";
@@ -64,7 +66,150 @@ function getPluginRuntimeOptions(pluginConfig) {
   };
 }
 
-export default {
+async function handleSearchRoute({
+  api,
+  pluginConfig,
+  appendDebugLog,
+  text,
+  hookName,
+  hookMeta = {}
+}) {
+  appendDebugLog(`${hookName}.enter`, {
+    ...hookMeta,
+    text: typeof text === "string" ? text : ""
+  });
+
+  const intent = extractSearchIntentFromEvent({
+    body: text,
+    content: text
+  });
+  if (!intent) {
+    appendDebugLog(`${hookName}.no_match`, {
+      ...hookMeta
+    });
+    return null;
+  }
+
+  const runnerPath = resolveRunnerPath(pluginConfig, __dirname);
+  if (!runnerPath) {
+    appendDebugLog(`${hookName}.missing_runner`, {
+      ...hookMeta,
+      query: intent.query
+    });
+    return {
+      handled: true,
+      text: buildMissingRunnerMessage(__dirname)
+    };
+  }
+
+  const runtimeOptions = getPluginRuntimeOptions(pluginConfig);
+  const sites = detectSites(intent.original);
+
+  if (!runtimeOptions.extensionId) {
+    appendDebugLog(`${hookName}.missing_extension_id`, {
+      ...hookMeta,
+      query: intent.query,
+      installUrl: runtimeOptions.installUrl
+    });
+    return {
+      handled: true,
+      text: buildMissingExtensionMessage({
+        ...pluginConfig,
+        extensionId: runtimeOptions.extensionId,
+        installUrl: runtimeOptions.installUrl
+      })
+    };
+  }
+
+  api.logger?.info?.(
+    `ai-compare-hard-router: ${hookName} matched query="${intent.query}" sites=${sites.join(",") || "default"} runner=${runnerPath}`
+  );
+  appendDebugLog(`${hookName}.match`, {
+    ...hookMeta,
+    query: intent.query,
+    original: intent.original,
+    matchedFrom: intent.matchedFrom,
+    matchType: intent.matchType || "search",
+    noSummary: intent.noSummary === true,
+    sites,
+    runnerPath,
+    extensionId: runtimeOptions.extensionId,
+    browserApp: runtimeOptions.browserApp,
+    installUrl: runtimeOptions.installUrl,
+    timeoutMs: runtimeOptions.timeoutMs
+  });
+
+  const execResult = await runNodeScript(
+    buildRunnerArgs({
+      runnerPath,
+      query: intent.query,
+      sites,
+      extensionId: runtimeOptions.extensionId,
+      browserApp: runtimeOptions.browserApp
+    }),
+    runtimeOptions.timeoutMs,
+    api.logger
+  );
+
+  appendDebugLog(`${hookName}.runner_complete`, {
+    ...hookMeta,
+    query: intent.query,
+    ok: execResult.ok,
+    timedOut: execResult.timedOut,
+    code: execResult.code,
+    signal: execResult.signal,
+    stdoutPreview: truncateContent(execResult.stdout || "", 800),
+    stderrPreview: truncateContent(execResult.stderr || "", 800)
+  });
+
+  if (execResult.timedOut) {
+    return {
+      handled: true,
+      text: buildFailureMessage({
+        query: intent.query,
+        detail: "Timed out waiting for the AI Compare runner to finish.",
+        stderr: execResult.stderr
+      })
+    };
+  }
+
+  const payload = extractJsonPayload(execResult.stdout);
+  if (!payload) {
+    appendDebugLog(`${hookName}.bad_json`, {
+      ...hookMeta,
+      query: intent.query
+    });
+    return {
+      handled: true,
+      text: buildFailureMessage({
+        query: intent.query,
+        detail: "Runner did not return valid JSON.",
+        stderr: [execResult.stderr, execResult.stdout].filter(Boolean).join("\n")
+      })
+    };
+  }
+
+  appendDebugLog(`${hookName}.handled`, {
+    ...hookMeta,
+    query: intent.query,
+    payloadOk: payload?.ok === true,
+    resultCount: Array.isArray(payload?.result?.results) ? payload.result.results.length : 0
+  });
+
+  return {
+    handled: true,
+    text: formatRunnerPayload(payload, {
+      query: intent.query,
+      pluginConfig: {
+        ...pluginConfig,
+        extensionId: runtimeOptions.extensionId,
+        installUrl: runtimeOptions.installUrl
+      }
+    })
+  };
+}
+
+export default definePluginEntry({
   id: PLUGIN_ID,
   name: PLUGIN_NAME,
   description: PLUGIN_DESCRIPTION,
@@ -74,137 +219,63 @@ export default {
 
     appendDebugLog("register", {
       pluginId: PLUGIN_ID,
-      hasPluginConfig: !!api?.pluginConfig
+      hasPluginConfig: !!api?.pluginConfig,
+      registrationMode: api?.registrationMode,
+      onType: typeof api?.on
     });
 
+    appendDebugLog("register.before_dispatch_hook_setup", {
+      pluginId: PLUGIN_ID
+    });
     api.on("before_dispatch", async (event) => {
-      appendDebugLog("before_dispatch.enter", {
-        channel: event?.channel,
-        sessionKey: event?.sessionKey,
-        content: typeof event?.content === "string" ? event.content : "",
-        body: typeof event?.body === "string" ? event.body : ""
+      return await handleSearchRoute({
+        api,
+        pluginConfig,
+        appendDebugLog,
+        text: typeof event?.body === "string" && event.body.trim()
+          ? event.body
+          : typeof event?.content === "string"
+            ? event.content
+            : "",
+        hookName: "before_dispatch",
+        hookMeta: {
+          channel: event?.channel,
+          sessionKey: event?.sessionKey,
+          senderId: event?.senderId,
+          isGroup: event?.isGroup === true
+        }
+      });
+    });
+
+    appendDebugLog("register.before_agent_reply_hook_setup", {
+      pluginId: PLUGIN_ID
+    });
+    api.on("before_agent_reply", async (event, ctx) => {
+      const routeResult = await handleSearchRoute({
+        api,
+        pluginConfig,
+        appendDebugLog,
+        text: typeof event?.cleanedBody === "string" ? event.cleanedBody : "",
+        hookName: "before_agent_reply",
+        hookMeta: {
+          trigger: ctx?.trigger,
+          sessionKey: ctx?.sessionKey,
+          channelId: ctx?.channelId,
+          messageProvider: ctx?.messageProvider
+        }
       });
 
-      const intent = extractSearchIntentFromEvent(event);
-      if (!intent) {
-        appendDebugLog("before_dispatch.no_match", {
-          channel: event?.channel,
-          sessionKey: event?.sessionKey
-        });
+      if (!routeResult?.handled) {
         return;
       }
 
-      const runnerPath = resolveRunnerPath(pluginConfig, __dirname);
-      if (!runnerPath) {
-        appendDebugLog("before_dispatch.missing_runner", {
-          query: intent.query
-        });
-        return {
-          handled: true,
-          text: buildMissingRunnerMessage(__dirname)
-        };
-      }
-
-      const runtimeOptions = getPluginRuntimeOptions(pluginConfig);
-      const sites = detectSites(intent.original);
-
-      if (!runtimeOptions.extensionId) {
-        appendDebugLog("before_dispatch.missing_extension_id", {
-          query: intent.query,
-          installUrl: runtimeOptions.installUrl
-        });
-        return {
-          handled: true,
-          text: buildMissingExtensionMessage({
-            ...pluginConfig,
-            extensionId: runtimeOptions.extensionId,
-            installUrl: runtimeOptions.installUrl
-          })
-        };
-      }
-
-      api.logger?.info?.(
-        `ai-compare-hard-router: matched query="${intent.query}" sites=${sites.join(",") || "default"} runner=${runnerPath}`
-      );
-      appendDebugLog("before_dispatch.match", {
-        query: intent.query,
-        original: intent.original,
-        matchedFrom: intent.matchedFrom,
-        matchType: intent.matchType || "search",
-        noSummary: intent.noSummary === true,
-        sites,
-        runnerPath,
-        extensionId: runtimeOptions.extensionId,
-        browserApp: runtimeOptions.browserApp,
-        installUrl: runtimeOptions.installUrl,
-        timeoutMs: runtimeOptions.timeoutMs
-      });
-
-      const execResult = await runNodeScript(
-        buildRunnerArgs({
-          runnerPath,
-          query: intent.query,
-          sites,
-          extensionId: runtimeOptions.extensionId,
-          browserApp: runtimeOptions.browserApp
-        }),
-        runtimeOptions.timeoutMs,
-        api.logger
-      );
-
-      appendDebugLog("before_dispatch.runner_complete", {
-        query: intent.query,
-        ok: execResult.ok,
-        timedOut: execResult.timedOut,
-        code: execResult.code,
-        signal: execResult.signal,
-        stdoutPreview: truncateContent(execResult.stdout || "", 800),
-        stderrPreview: truncateContent(execResult.stderr || "", 800)
-      });
-
-      if (execResult.timedOut) {
-        return {
-          handled: true,
-          text: buildFailureMessage({
-            query: intent.query,
-            detail: "Timed out waiting for the AI Compare runner to finish.",
-            stderr: execResult.stderr
-          })
-        };
-      }
-
-      const payload = extractJsonPayload(execResult.stdout);
-      if (!payload) {
-        appendDebugLog("before_dispatch.bad_json", {
-          query: intent.query
-        });
-        return {
-          handled: true,
-          text: buildFailureMessage({
-            query: intent.query,
-            detail: "Runner did not return valid JSON.",
-            stderr: [execResult.stderr, execResult.stdout].filter(Boolean).join("\n")
-          })
-        };
-      }
-
-      appendDebugLog("before_dispatch.handled", {
-        query: intent.query,
-        payloadOk: payload?.ok === true,
-        resultCount: Array.isArray(payload?.result?.results) ? payload.result.results.length : 0
-      });
-
       return {
         handled: true,
-        text: formatRunnerPayload(payload, {
-          query: intent.query,
-          pluginConfig: {
-            ...pluginConfig,
-            extensionId: runtimeOptions.extensionId,
-            installUrl: runtimeOptions.installUrl
-          }
-        })
+        reply: {
+          text: routeResult.text || "NO_REPLY"
+        },
+        reason: "ai-compare-hard-router"
       };
     });
   }
-};
+});

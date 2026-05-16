@@ -215,17 +215,18 @@ async function getPersistentContext(browser, waitMs = 5000, pollMs = 100) {
 }
 
 function getInstallInstructions(attemptedIds, explicitExtensionId) {
+  const repoRoot = path.resolve(__dirname, '..');
   const installLines = [
     'AI Compare browser extension is not available in the connected Chrome profile.',
     '',
     'How to fix:',
     '1. Install AI Compare in that same Chrome profile.',
     `   Chrome Web Store: ${DEFAULT_INSTALL_URL}`,
-    '2. Or load the AI Compare browser-extension repository as an unpacked extension:',
+    '2. Or load this repository as an unpacked extension:',
     '   - Open chrome://extensions',
     '   - Enable Developer mode',
     '   - Click "Load unpacked"',
-    '   - Select the AI Compare browser-extension repository root',
+    `   - Select this folder: ${repoRoot}`,
     '3. Open the generated chrome-extension://... link in that same browser profile.',
     '4. If you installed an unpacked build or a different extension id, pass --extension-id <your-id> or set AI_COMPARE_EXTENSION_ID=<your-id>.'
   ];

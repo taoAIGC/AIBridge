@@ -20,7 +20,7 @@ Use this guide when the OpenClaw runner says the AI Compare browser extension is
 1. Open `chrome://extensions`
 2. Open AI Compare details
 3. Copy the extension id
-4. Run the skill with:
+4. Run the runner with:
 
 ```bash
 node ./ai-compare-openclaw-runner.js --mode gui --query "你好世界" --extension-id "<YOUR_EXTENSION_ID>"

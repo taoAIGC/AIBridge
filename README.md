@@ -23,7 +23,7 @@ openclaw gateway restart
 ### Direct from GitHub
 
 ```bash
-openclaw plugins install https://github.com/taoAIGC/AIBridge.git
+openclaw plugins install git:github.com/taoAIGC/AIBridge
 openclaw plugins enable ai-compare-hard-router
 openclaw gateway restart
 ```
@@ -31,7 +31,7 @@ openclaw gateway restart
 ### Development: linked local plugin
 
 ```bash
-openclaw plugins install --link <AIBRIDGE_REPO_ROOT>
+openclaw plugins install --link <REPO_ROOT>/openclaw-extension
 openclaw plugins enable ai-compare-hard-router
 openclaw gateway restart
 ```
@@ -67,7 +67,7 @@ Add plugin config to `~/.openclaw/openclaw.json`:
 }
 ```
 
-For a release build, the defaults already point at the Chrome Web Store build above. For a private or unpacked browser-extension build, override `extensionId` and `installUrl` with the installed extension id and the matching onboarding page.
+For a release build, set `extensionId` and `installUrl` to the Chrome Web Store values for that release. For a private or unpacked build, point `extensionId` at the installed Chrome extension id and `installUrl` at the matching install page or onboarding page.
 
 ## Behavior notes
 
