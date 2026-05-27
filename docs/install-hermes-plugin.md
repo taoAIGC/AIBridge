@@ -59,6 +59,7 @@ The plugin also reuses `~/.openclaw/openclaw.json` when you already have matchin
 
 ```bash
 hermes chat -q '搜索一下本地论，不要做总结，不要做摘要'
+hermes chat -q 'search for OpenAI, do not summarize, do not make an abstract'
 ```
 
 ## Natural-language usage
@@ -67,6 +68,7 @@ The plugin also adds a `pre_llm_call` hint for search-style prompts, so natural 
 
 - `搜索一下 OpenAI`
 - `帮我比较一下 ChatGPT 和 Claude 对同一个问题的回答`
+- `search for OpenAI`
 - `look up OpenAI with ChatGPT and Gemini`
 
 ## Troubleshooting

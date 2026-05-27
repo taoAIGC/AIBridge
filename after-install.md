@@ -21,6 +21,7 @@ This repository now installs as a Hermes plugin named `ai-compare-hard-router`.
 
 ```bash
 hermes chat -q '搜索一下本地论，不要做总结，不要做摘要'
+hermes chat -q 'search for OpenAI, do not summarize, do not make an abstract'
 ```
 
 ## Development extension

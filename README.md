@@ -105,6 +105,7 @@ More Hermes-specific setup details:
 
 ```bash
 hermes chat -q '搜索一下本地论，不要做总结，不要做摘要'
+hermes chat -q 'search for OpenAI, do not summarize, do not make an abstract'
 ```
 
 ## Usage notes
