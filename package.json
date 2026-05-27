@@ -5,11 +5,18 @@
   "type": "module",
   "files": [
     "README.md",
+    "after-install.md",
+    "__init__.py",
     "bin",
     "config",
+    "config.yaml.example",
+    "docs",
     "index.js",
     "lib",
-    "openclaw.plugin.json"
+    "openclaw.plugin.json",
+    "plugin.yaml",
+    "schemas.py",
+    "tools.py"
   ],
   "openclaw": {
     "extensions": [
