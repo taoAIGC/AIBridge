@@ -65,8 +65,7 @@ Environment behavior:
 ### OpenClaw verify
 
 ```bash
-TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw/openclaw.json)
-openclaw tui --token "$TOKEN" --message '搜索一下 OpenAI'
+openclaw tui --message '搜索一下 OpenAI'
 ```
 
 ## Hermes install
