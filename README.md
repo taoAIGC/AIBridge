@@ -104,7 +104,7 @@ More Hermes-specific setup details:
 ### Hermes verify
 
 ```bash
-hermes chat -t plugin_ai_compare_hard_router -q '搜索一下本地论，不要做总结，不要做摘要'
+hermes chat -q '搜索一下本地论，不要做总结，不要做摘要'
 ```
 
 ## Usage notes

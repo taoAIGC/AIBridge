@@ -58,7 +58,7 @@ The plugin also reuses `~/.openclaw/openclaw.json` when you already have matchin
 ## Verify the install
 
 ```bash
-hermes chat -t plugin_ai_compare_hard_router -q '搜索一下本地论，不要做总结，不要做摘要'
+hermes chat -q '搜索一下本地论，不要做总结，不要做摘要'
 ```
 
 ## Natural-language usage
