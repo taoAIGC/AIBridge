@@ -72,6 +72,7 @@ openclaw tui --message '搜索一下 OpenAI'
 
 ```bash
 hermes plugins install taoAIGC/AIBridge
+hermes gateway restart
 ```
 
 Hermes installs this repository as the plugin:
